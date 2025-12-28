@@ -1,7 +1,10 @@
+require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 const connectDB = require("./config/db");
 const marketRoutes = require("./routes/marketRoutes");
+const adminRoutes = require("./routes/adminRoutes");
+app.use("/admin", adminRoutes);
 
 connectDB();
 
