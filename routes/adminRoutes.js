@@ -1,6 +1,6 @@
 const express = require("express");
 const jwt = require("jsonwebtoken");
-const bcrypt = require("bcryptjs");
+const bcrypt = require("bcrypt");
 
 const Admin = require("../models/Admin");
 const SubAdmin = require("../models/SubAdmin"); // ✅ FIX HERE
