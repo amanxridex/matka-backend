@@ -1,45 +1,32 @@
 const express = require("express");
 const bcrypt = require("bcrypt");
 const User = require("../models/User");
-const authSubAdmin = require("../middleware/authSubAdmin");
+const auth = require("../middleware/auth");
 
 const router = express.Router();
 
-/* CREATE USER */
-router.post("/create", authSubAdmin, async (req, res) => {
-  const { username, password } = req.body;
+/* CREATE USER (SUB ADMIN) */
+router.post("/create", auth("SUB_ADMIN"), async (req, res) => {
+  try {
+    const { username, password } = req.body;
 
-  const hash = await bcrypt.hash(password, 10);
+    if (!username || !password) {
+      return res.status(400).json({ message: "Missing fields" });
+    }
 
-  const user = await User.create({
-    username,
-    password: hash,
-    createdBy: req.subAdmin._id
-  });
+    const hash = await bcrypt.hash(password, 10);
 
-  res.json(user);
-});
+    const user = await User.create({
+      username,
+      password: hash,
+      balance: 0,
+      createdBy: req.user.id   // 👈 subadmin id
+    });
 
-/* LIST USERS (only own) */
-router.get("/", authSubAdmin, async (req, res) => {
-  const users = await User.find({ createdBy: req.subAdmin._id });
-  res.json(users);
-});
-
-/* ADD / DEDUCT BALANCE */
-router.put("/wallet/:id", authSubAdmin, async (req, res) => {
-  const { amount } = req.body; // + or -
-  const user = await User.findOne({
-    _id: req.params.id,
-    createdBy: req.subAdmin._id
-  });
-
-  if (!user) return res.status(404).json({ message: "User not found" });
-
-  user.balance += amount;
-  await user.save();
-
-  res.json(user);
+    res.json(user);
+  } catch (err) {
+    res.status(500).json({ message: "Server error" });
+  }
 });
 
 module.exports = router;
