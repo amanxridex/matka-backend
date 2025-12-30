@@ -43,6 +43,25 @@ router.post("/create-subadmin", auth("SUPER_ADMIN"), async (req, res) => {
   res.json(sa);
 });
 
+/* ---------- SUB ADMIN STATS ---------- */
+router.get("/subadmin-stats", auth("SUPER_ADMIN"), async (req, res) => {
+  try {
+    const subs = await SubAdmin.find({}, "username users balance");
+
+    const totalSubAdmins = subs.length;
+    const totalUsers = subs.reduce((sum, s) => sum + (s.users || 0), 0);
+    const totalWallet = subs.reduce((sum, s) => sum + (s.balance || 0), 0);
+
+    res.json({
+      totalSubAdmins,
+      totalUsers,
+      totalWallet,
+      subAdmins: subs
+    });
+  } catch (err) {
+    res.status(500).json({ message: "Server error" });
+  }
+});
 
 /* ---------- UPDATE MARKET (NAME + TIME) ---------- */
 router.put("/market/:id", auth("SUPER_ADMIN"), async (req, res) => {
