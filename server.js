@@ -15,7 +15,9 @@ app.use(express.json());
 
 // ROUTES
 app.use("/admin", adminRoutes);
+app.use("/subadmin", require("./routes/subAdminRoutes"));
 app.use("/api/markets", marketRoutes); // 👈 ADD (VERY IMPORTANT)
+app.use("/subadmin/users", require("./routes/userRoutes"));
 
 const PORT = process.env.PORT || 5000;
 
