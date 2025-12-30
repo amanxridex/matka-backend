@@ -1,21 +1,23 @@
+const cron = require("node-cron");   // ✅ YE LINE MISS THI
+const Market = require("./models/Market");
+
 cron.schedule("* * * * *", async () => {
   const now = new Date();
-  const current = now.getHours().toString().padStart(2,"0") + ":" +
-                  now.getMinutes().toString().padStart(2,"0");
+  const currentTime = now.toTimeString().slice(0, 5); // HH:mm
 
   const markets = await Market.find();
 
   for (let m of markets) {
-    if (m.openTime === current) {
+    if (m.openTime === currentTime && m.status !== "OPEN") {
       m.status = "OPEN";
       await m.save();
     }
 
-    if (m.closeTime === current) {
+    if (m.closeTime === currentTime && m.status !== "CLOSED") {
       m.status = "CLOSED";
       await m.save();
     }
   }
 
-  console.log("⏱ Market auto-check done:", current);
+  console.log("⏱ Market auto-check done:", currentTime);
 });
