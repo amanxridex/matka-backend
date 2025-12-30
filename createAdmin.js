@@ -1,17 +1,19 @@
 require("dotenv").config();
-
-const bcrypt = require("bcryptjs");
 const mongoose = require("mongoose");
+const bcrypt = require("bcryptjs");
 const Admin = require("./models/Admin");
 
-mongoose.connect(process.env.MONGO_URI);
-
-(async () => {
+mongoose.connect(process.env.MONGO_URI).then(async () => {
   const hash = await bcrypt.hash("admin123", 10);
+
+  await Admin.deleteMany({ username: "admin" }); // safety
+
   await Admin.create({
     username: "admin",
-    password: hash
+    password: hash,
+    role: "SUPER_ADMIN"
   });
-  console.log("Admin created");
+
+  console.log("ADMIN CREATED SUCCESSFULLY");
   process.exit();
-})();
+});
