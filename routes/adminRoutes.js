@@ -37,10 +37,12 @@ router.post("/create-subadmin", auth("SUPER_ADMIN"), async (req, res) => {
     username,
     password: hash,
     createdBy: req.user.id
+    // ❌ users & balance yahan likhne ki zarurat nahi
   });
 
   res.json(sa);
 });
+
 
 /* ---------- UPDATE MARKET (NAME + TIME) ---------- */
 router.put("/market/:id", auth("SUPER_ADMIN"), async (req, res) => {
