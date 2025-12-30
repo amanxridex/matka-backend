@@ -45,14 +45,14 @@ router.post("/create-subadmin", auth("SUPER_ADMIN"), async (req, res) => {
 /* ---------- UPDATE MARKET (NAME + TIME) ---------- */
 router.put("/market/:id", auth("SUPER_ADMIN"), async (req, res) => {
   try {
-    const { name, openAt, closeAt } = req.body;
+    const { name, openTime, closeTime } = req.body;
 
     const market = await Market.findByIdAndUpdate(
       req.params.id,
       {
         name,
-        openAt,
-        closeAt
+        openTime,
+        closeTime
       },
       { new: true }
     );
