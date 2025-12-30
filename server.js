@@ -1,5 +1,5 @@
-require("./cron");
 require("dotenv").config();
+require("./cron");
 
 const express = require("express");
 const mongoose = require("mongoose");
