@@ -1,18 +1,7 @@
-const express = require("express");
-const Market = require("../models/Market");
-const getStatus = require("../utils/marketStatus");
-
-const router = express.Router();
-
-/* ADD MARKET (ADMIN) */
-router.post("/add", async (req, res) => {
-  const market = await Market.create(req.body);
-  res.json(market);
-});
-
-/* GET MARKETS (USER) */
 router.get("/", async (req, res) => {
   const markets = await Market.find();
+
+  console.log("DEBUG MARKETS RAW:", markets);
 
   const data = markets.map(m => ({
     _id: m._id,
@@ -24,5 +13,3 @@ router.get("/", async (req, res) => {
 
   res.json(data);
 });
-
-module.exports = router;
