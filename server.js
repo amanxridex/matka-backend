@@ -5,14 +5,16 @@ const mongoose = require("mongoose");
 const cors = require("cors");
 
 const adminRoutes = require("./routes/adminRoutes");
+const marketRoutes = require("./routes/marketRoutes"); // 👈 ADD
 
-const app = express();   // 👈 app yahin banna chahiye
+const app = express();
 
 app.use(cors());
 app.use(express.json());
 
-// routes
+// ROUTES
 app.use("/admin", adminRoutes);
+app.use("/api/markets", marketRoutes); // 👈 ADD (VERY IMPORTANT)
 
 const PORT = process.env.PORT || 5000;
 
