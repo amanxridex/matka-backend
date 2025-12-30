@@ -8,12 +8,12 @@ cron.schedule("* * * * *", async () => {
   const markets = await Market.find();
 
   for (let m of markets) {
-    if (m.openAt === currentTime && m.status !== "OPEN") {
+    if (m.openTime === currentTime && m.status !== "OPEN") {
       m.status = "OPEN";
       await m.save();
     }
 
-    if (m.closeAt === currentTime && m.status !== "CLOSED") {
+    if (m.closeTime === currentTime && m.status !== "CLOSED") {
       m.status = "CLOSED";
       await m.save();
     }
