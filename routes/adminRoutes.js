@@ -1,7 +1,7 @@
 const express = require("express");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcrypt");
-
+const Market = require("../models/Market");
 const Admin = require("../models/Admin");
 const SubAdmin = require("../models/SubAdmin"); // ✅ FIX HERE
 const auth = require("../middleware/auth");
@@ -41,6 +41,32 @@ router.post("/create-subadmin", auth("SUPER_ADMIN"), async (req, res) => {
 
   res.json(sa);
 });
+
+/* ---------- UPDATE MARKET (NAME + TIME) ---------- */
+router.put("/market/:id", auth("SUPER_ADMIN"), async (req, res) => {
+  try {
+    const { name, openAt, closeAt } = req.body;
+
+    const market = await Market.findByIdAndUpdate(
+      req.params.id,
+      {
+        name,
+        openAt,
+        closeAt
+      },
+      { new: true }
+    );
+
+    if (!market) {
+      return res.status(404).json({ message: "Market not found" });
+    }
+
+    res.json(market);
+  } catch (err) {
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
 
 /* ---------- LIST SUB ADMINS ---------- */
 router.get("/subadmins", auth("SUPER_ADMIN"), async (req, res) => {
