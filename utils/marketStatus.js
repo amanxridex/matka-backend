@@ -2,17 +2,16 @@ function getStatus(openTime, closeTime) {
   if (!openTime || !closeTime) return "CLOSED";
 
   const now = new Date();
-  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+  const [oh, om] = openTime.split(":");
+  const [ch, cm] = closeTime.split(":");
 
-  const [oh, om] = openTime.split(":").map(Number);
-  const [ch, cm] = closeTime.split(":").map(Number);
+  const open = new Date();
+  open.setHours(oh, om, 0);
 
-  const openMinutes = oh * 60 + om;
-  const closeMinutes = ch * 60 + cm;
+  const close = new Date();
+  close.setHours(ch, cm, 0);
 
-  return currentMinutes >= openMinutes && currentMinutes < closeMinutes
-    ? "OPEN"
-    : "CLOSED";
+  return now >= open && now <= close ? "OPEN" : "CLOSED";
 }
 
 module.exports = getStatus;
