@@ -169,5 +169,33 @@ router.post("/login", async (req, res) => {
   }
 });
 
+/* ===============================
+   GET LOGGED IN USER (ME)
+   =============================== */
+const jwt = require("jsonwebtoken");
+
+router.get("/me", async (req, res) => {
+  try {
+    const auth = req.headers.authorization;
+    if (!auth) {
+      return res.status(401).json({ error: "No token" });
+    }
+
+    const token = auth.split(" ")[1];
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    const user = await User.findById(decoded.id).select(
+      "username balance"
+    );
+
+    if (!user) {
+      return res.status(401).json({ error: "User not found" });
+    }
+
+    res.json(user);
+  } catch (err) {
+    return res.status(401).json({ error: "Invalid token" });
+  }
+});
 
 module.exports = router;
