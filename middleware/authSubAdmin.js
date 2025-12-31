@@ -1,26 +1,21 @@
 const jwt = require("jsonwebtoken");
-const SubAdmin = require("../models/SubAdmin");
 
-module.exports = async function (req, res, next) {
+module.exports = function authSubAdmin(req, res, next) {
+  const header = req.headers.authorization;
+  if (!header) return res.status(401).json({ message: "No token" });
+
+  const token = header.split(" ")[1];
+
   try {
-    const token = req.headers.authorization?.split(" ")[1];
-    if (!token) {
-      return res.status(401).json({ message: "No token" });
-    }
-
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    // 🔥 DATABASE SE SUBADMIN NIKALO
-    const subAdmin = await SubAdmin.findById(decoded.id);
-    if (!subAdmin) {
-      return res.status(401).json({ message: "Invalid sub admin" });
+    if (decoded.role !== "SUB_ADMIN") {
+      return res.status(403).json({ message: "Forbidden" });
     }
 
-    // 🔥 YAHI SABSE IMPORTANT LINE
-    req.subAdmin = subAdmin;
-
+    req.subAdmin = { id: decoded.id };
     next();
   } catch (err) {
-    return res.status(401).json({ message: "Auth failed" });
+    return res.status(401).json({ message: "Invalid token" });
   }
 };

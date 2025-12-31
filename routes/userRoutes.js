@@ -1,33 +1,28 @@
 const express = require("express");
-const bcrypt = require("bcrypt");
 const User = require("../models/User");
-const SubAdmin = require("../models/SubAdmin");
 const authSubAdmin = require("../middleware/authSubAdmin");
 
 const router = express.Router();
 
-/* GET USERS */
+/* GET USERS OF LOGGED-IN SUBADMIN */
+router.get("/", authSubAdmin, async (req, res) => {
+  const users = await User.find({
+    createdBy: req.subAdmin.id
+  }).select("username balance");
+
+  res.json(users);
+});
+
+/* CREATE USER */
 router.post("/create", authSubAdmin, async (req, res) => {
-  try {
-    const { username, password } = req.body;
+  const user = await User.create({
+    username: req.body.username,
+    password: req.body.password,
+    createdBy: req.subAdmin.id,
+    balance: 0
+  });
 
-    const hashed = await bcrypt.hash(password, 10);
-
-    const user = await User.create({
-      username,
-      password: hashed,
-      createdBy: req.subAdmin.id
-    });
-
-    // 🔥 SUBADMIN USERS +1
-    await SubAdmin.findByIdAndUpdate(req.subAdmin.id, {
-      $inc: { users: 1 }
-    });
-
-    res.json(user);
-  } catch (err) {
-    res.status(400).json({ msg: err.message });
-  }
+  res.json(user);
 });
 
 module.exports = router;
