@@ -14,7 +14,7 @@ router.get("/", authSubAdmin, async (req, res) => {
   try {
     const users = await User.find({
       createdBy: req.subAdmin.id
-    }).select("username balance");
+    }).select("username balance transactions");
 
     res.json(users);
   } catch (err) {
