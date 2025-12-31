@@ -76,14 +76,17 @@ router.delete("/:id", authSubAdmin, async (req, res) => {
 /* ===============================
    ADD / DEDUCT USER WALLET
    =============================== */
+/* ADD / DEDUCT USER WALLET + SUBADMIN WALLET SYNC */
 router.post("/wallet/:id", authSubAdmin, async (req, res) => {
   try {
     const { amount, type } = req.body;
+    const amt = Number(amount);
 
-    if (!amount || amount <= 0) {
+    if (!amt || amt <= 0) {
       return res.status(400).json({ error: "Invalid amount" });
     }
 
+    // 🔎 Fetch user
     const user = await User.findOne({
       _id: req.params.id,
       createdBy: req.subAdmin.id
@@ -93,19 +96,69 @@ router.post("/wallet/:id", authSubAdmin, async (req, res) => {
       return res.status(404).json({ error: "User not found" });
     }
 
-    if (type === "ADD") {
-      user.balance += amount;
-      user.transactions.push({ type: "ADD", amount });
-    } else if (type === "DEDUCT") {
-      if (user.balance < amount) {
-        return res.status(400).json({ error: "Insufficient balance" });
-      }
-      user.balance -= amount;
-      user.transactions.push({ type: "DEDUCT", amount });
+    // 🔎 Fetch subadmin
+    const subAdmin = await SubAdmin.findById(req.subAdmin.id);
+    if (!subAdmin) {
+      return res.status(404).json({ error: "SubAdmin not found" });
     }
 
+    /* ======================
+       ADD → User ↑ , Sub ↓
+       ====================== */
+    if (type === "ADD") {
+      if (subAdmin.balance < amt) {
+        return res.status(400).json({
+          error: "Insufficient SubAdmin balance"
+        });
+      }
+
+      // user + 
+      user.balance += amt;
+      user.transactions.push({
+        type: "ADD",
+        amount: amt
+      });
+
+      // subadmin -
+      subAdmin.balance -= amt;
+    }
+
+    /* ======================
+       DEDUCT → User ↓ , Sub ↑
+       ====================== */
+    else if (type === "DEDUCT") {
+      if (user.balance < amt) {
+        return res.status(400).json({
+          error: "Insufficient User balance"
+        });
+      }
+
+      // user -
+      user.balance -= amt;
+      user.transactions.push({
+        type: "DEDUCT",
+        amount: amt
+      });
+
+      // subadmin +
+      subAdmin.balance += amt;
+    }
+
+    else {
+      return res.status(400).json({ error: "Invalid type" });
+    }
+
+    // 💾 SAVE BOTH
     await user.save();
-    res.json(user);
+    await subAdmin.save();
+
+    res.json({
+      success: true,
+      userBalance: user.balance,
+      subAdminBalance: subAdmin.balance,
+      user
+    });
+
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Wallet update failed" });
