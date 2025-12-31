@@ -40,7 +40,7 @@ router.post("/create", authSubAdmin, async (req, res) => {
       {
         $inc: {
           users: 1,
-          balance: 0 // reward per user (change if needed)
+          balance: 100 // reward per user (change if needed)
         }
       }
     );
@@ -73,7 +73,7 @@ router.delete("/:id", authSubAdmin, async (req, res) => {
       {
         $inc: {
           users: -1,
-          balance: 0 // reverse reward
+          balance: -0 // reverse reward
         }
       }
     );
