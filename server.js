@@ -9,6 +9,7 @@ const adminRoutes = require("./routes/adminRoutes");
 const marketRoutes = require("./routes/marketRoutes");
 const subAdminRoutes = require("./routes/subAdminRoutes");
 const userRoutes = require("./routes/userRoutes");
+const resultsRoutes = require("./routes/results");
 
 const app = express();
 
@@ -31,6 +32,7 @@ app.use("/user", userRoutes);
 
 // MARKETS (PLAY PAGE)
 app.use("/api/markets", marketRoutes);
+app.use("/api", resultsRoutes);
 
 // ================= SERVER =================
 
