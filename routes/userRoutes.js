@@ -2,6 +2,8 @@ const express = require("express");
 const User = require("../models/User");
 const SubAdmin = require("../models/SubAdmin");
 const authSubAdmin = require("../middleware/authSubAdmin");
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken"); // ✅ ONLY ONCE
 
 const router = express.Router();
 
@@ -22,28 +24,22 @@ router.get("/", authSubAdmin, async (req, res) => {
 });
 
 /* ===============================
-   CREATE USER (+1 USER, +BALANCE)
+   CREATE USER (+1 USER)
    =============================== */
 router.post("/create", authSubAdmin, async (req, res) => {
   try {
-    // 1️⃣ create user
+    const hashed = await bcrypt.hash(req.body.password, 10);
+
     const user = await User.create({
       username: req.body.username,
-      password: req.body.password,
+      password: hashed,
       createdBy: req.subAdmin.id,
       balance: 0
     });
 
-    // 2️⃣ increment subadmin counters
-    await SubAdmin.findByIdAndUpdate(
-      req.subAdmin.id,
-      {
-        $inc: {
-          users: 1,
-          balance: 0 // reward per user (change if needed)
-        }
-      }
-    );
+    await SubAdmin.findByIdAndUpdate(req.subAdmin.id, {
+      $inc: { users: 1 }
+    });
 
     res.json(user);
   } catch (err) {
@@ -53,11 +49,10 @@ router.post("/create", authSubAdmin, async (req, res) => {
 });
 
 /* ===============================
-   DELETE USER (-1 USER, -BALANCE)
+   DELETE USER (-1 USER)
    =============================== */
 router.delete("/:id", authSubAdmin, async (req, res) => {
   try {
-    // 1️⃣ delete only subadmin's own user
     const user = await User.findOneAndDelete({
       _id: req.params.id,
       createdBy: req.subAdmin.id
@@ -67,16 +62,9 @@ router.delete("/:id", authSubAdmin, async (req, res) => {
       return res.status(404).json({ error: "User not found" });
     }
 
-    // 2️⃣ reverse subadmin counters
-    await SubAdmin.findByIdAndUpdate(
-      req.subAdmin.id,
-      {
-        $inc: {
-          users: -1,
-          balance: -0 // reverse reward
-        }
-      }
-    );
+    await SubAdmin.findByIdAndUpdate(req.subAdmin.id, {
+      $inc: { users: -1 }
+    });
 
     res.json({ success: true });
   } catch (err) {
@@ -85,7 +73,9 @@ router.delete("/:id", authSubAdmin, async (req, res) => {
   }
 });
 
-/* ADD / DEDUCT USER WALLET */
+/* ===============================
+   ADD / DEDUCT USER WALLET
+   =============================== */
 router.post("/wallet/:id", authSubAdmin, async (req, res) => {
   try {
     const { amount, type } = req.body;
@@ -105,23 +95,16 @@ router.post("/wallet/:id", authSubAdmin, async (req, res) => {
 
     if (type === "ADD") {
       user.balance += amount;
-      user.transactions.push({
-        type: "ADD",
-        amount
-      });
+      user.transactions.push({ type: "ADD", amount });
     } else if (type === "DEDUCT") {
       if (user.balance < amount) {
         return res.status(400).json({ error: "Insufficient balance" });
       }
       user.balance -= amount;
-      user.transactions.push({
-        type: "DEDUCT",
-        amount
-      });
+      user.transactions.push({ type: "DEDUCT", amount });
     }
 
     await user.save();
-
     res.json(user);
   } catch (err) {
     console.error(err);
@@ -130,11 +113,8 @@ router.post("/wallet/:id", authSubAdmin, async (req, res) => {
 });
 
 /* ===============================
-   USER LOGIN (FOR PLAY PAGE)
+   USER LOGIN (PLAY PAGE)
    =============================== */
-const bcrypt = require("bcryptjs");
-const jwt = require("jsonwebtoken");
-
 router.post("/login", async (req, res) => {
   try {
     const { username, password } = req.body;
@@ -170,10 +150,8 @@ router.post("/login", async (req, res) => {
 });
 
 /* ===============================
-   GET LOGGED IN USER (ME)
+   GET LOGGED-IN USER (ME)
    =============================== */
-const jwt = require("jsonwebtoken");
-
 router.get("/me", async (req, res) => {
   try {
     const auth = req.headers.authorization;
