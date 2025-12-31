@@ -313,42 +313,45 @@ router.post("/place-bet", async (req, res) => {
 router.post("/place-bet", async (req, res) => {
   try {
     const auth = req.headers.authorization;
-    if (!auth) return res.status(401).json({ error: "No token" });
+    if (!auth) {
+      return res.status(401).json({ error: "No token" });
+    }
 
     const token = auth.split(" ")[1];
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    const { bets, totalAmount, market, betType } = req.body;
+    const { market, gameType, bets, totalAmount } = req.body;
 
-    if (!bets?.length || !market || !betType) {
+    if (!market || !gameType) {
+      return res.status(400).json({ error: "Market or Game Type missing" });
+    }
+
+    if (!bets || !bets.length || totalAmount <= 0) {
       return res.status(400).json({ error: "Invalid bet data" });
     }
 
     const user = await User.findById(decoded.id);
-    if (!user) return res.status(404).json({ error: "User not found" });
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
 
     if (user.balance < totalAmount) {
       return res.status(400).json({ error: "Insufficient balance" });
     }
 
-    // 💸 DEDUCT BALANCE
+    // 🔻 Deduct balance
     user.balance -= totalAmount;
 
+    // ✅ SAVE FULL BET INFO
     user.transactions.push({
-      type: "DEDUCT",
-      amount: totalAmount
+      type: "BET",
+      amount: totalAmount,
+      market: market,        // ✅ IMPORTANT
+      gameType: gameType,    // ✅ IMPORTANT
+      bets: bets
     });
 
     await user.save();
-
-    // 🧾 SAVE BET
-    await Bet.create({
-      user: user._id,
-      market,          // ✅ IMPORTANT
-      betType,         // AKHAR / JODI
-      bets,
-      totalAmount
-    });
 
     res.json({
       success: true,
@@ -357,7 +360,7 @@ router.post("/place-bet", async (req, res) => {
 
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: "Bet failed" });
+    res.status(500).json({ error: "Bet placement failed" });
   }
 });
 
