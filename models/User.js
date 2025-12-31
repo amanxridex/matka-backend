@@ -28,19 +28,34 @@ const userSchema = new mongoose.Schema(
       {
         type: {
           type: String,
-          enum: ["ADD", "DEDUCT", "BET"], // ✅ BET ADDED
+          enum: ["ADD", "DEDUCT", "BET"],
           required: true
         },
 
+        // total amount of ADD / DEDUCT / BET
         amount: {
           type: Number,
           required: true
         },
 
+        // ✅ ONLY FOR BET
+        market: {
+          type: String // "MADHUR MORNING"
+        },
+
+        gameType: {
+          type: String // "AKHAR" | "JODI"
+        },
+
+        // individual bets
         bets: [
           {
-            digit: String,     // "2" or "92"
-            amount: Number     // 50, 100 etc
+            digit: {
+              type: String // "2", "92"
+            },
+            amount: {
+              type: Number
+            }
           }
         ],
 
