@@ -19,11 +19,12 @@ router.get("/markets/live", async (req, res) => {
 /* ✅ PUBLISH RESULT */
 router.post("/results/publish", async (req, res) => {
   try {
-    const { market, result, session } = req.body;
+    const { market, result } = req.body;
 
-    if (!market || !result || !session) {
+    if (!market || !result) {
       return res.status(400).json({ error: "Missing fields" });
     }
+
 
     // ❌ Duplicate protection (same market + session + date)
     const exists = await Result.findOne({
@@ -42,8 +43,7 @@ router.post("/results/publish", async (req, res) => {
 
     const newResult = await Result.create({
       market,
-      result,
-      session
+      result
     });
 
     // 🔒 Close market after result

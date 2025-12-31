@@ -5,18 +5,10 @@ const resultSchema = new mongoose.Schema({
     type: String,
     required: true
   },
-
   result: {
     type: String,
     required: true
   },
-
-  session: {
-    type: String,
-    enum: ["OPEN", "CLOSE"],
-    required: true
-  },
-
   date: {
     type: Date,
     default: Date.now
