@@ -2,22 +2,39 @@ const mongoose = require("mongoose");
 
 const userSchema = new mongoose.Schema(
   {
-    username: String,
-    password: String,
+    username: {
+      type: String,
+      required: true,
+      trim: true
+    },
+
+    password: {
+      type: String,
+      required: true
+    },
+
     balance: {
       type: Number,
       default: 0
     },
+
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "SubAdmin"
+      ref: "SubAdmin",
+      required: true
     },
+
     transactions: [
       {
         type: {
-          type: String, // ADD / DEDUCT
+          type: String,
+          enum: ["ADD", "DEDUCT"],
+          required: true
         },
-        amount: Number,
+        amount: {
+          type: Number,
+          required: true
+        },
         date: {
           type: Date,
           default: Date.now
@@ -25,7 +42,9 @@ const userSchema = new mongoose.Schema(
       }
     ]
   },
-  { timestamps: true }
+  {
+    timestamps: true
+  }
 );
 
 module.exports = mongoose.model("User", userSchema);

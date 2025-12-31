@@ -85,4 +85,48 @@ router.delete("/:id", authSubAdmin, async (req, res) => {
   }
 });
 
+/* ADD / DEDUCT USER WALLET */
+router.post("/wallet/:id", authSubAdmin, async (req, res) => {
+  try {
+    const { amount, type } = req.body;
+
+    if (!amount || amount <= 0) {
+      return res.status(400).json({ error: "Invalid amount" });
+    }
+
+    const user = await User.findOne({
+      _id: req.params.id,
+      createdBy: req.subAdmin.id
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    if (type === "ADD") {
+      user.balance += amount;
+      user.transactions.push({
+        type: "ADD",
+        amount
+      });
+    } else if (type === "DEDUCT") {
+      if (user.balance < amount) {
+        return res.status(400).json({ error: "Insufficient balance" });
+      }
+      user.balance -= amount;
+      user.transactions.push({
+        type: "DEDUCT",
+        amount
+      });
+    }
+
+    await user.save();
+
+    res.json(user);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Wallet update failed" });
+  }
+});
+
 module.exports = router;
