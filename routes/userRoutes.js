@@ -40,7 +40,7 @@ router.post("/create", authSubAdmin, async (req, res) => {
       {
         $inc: {
           users: 1,
-          balance: 100 // reward per user (change if needed)
+          balance: 0 // reward per user (change if needed)
         }
       }
     );
