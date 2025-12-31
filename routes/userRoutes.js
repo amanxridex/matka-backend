@@ -323,7 +323,7 @@ router.post("/place-bet", async (req, res) => {
     const { market, gameType, bets, totalAmount } = req.body;
 
     if (!market || !gameType) {
-      return res.status(400).json({ error: "Market or Game Type missing" });
+      return res.status(400).json({ error: "Market or GameType missing" });
     }
 
     if (!bets || !bets.length || totalAmount <= 0) {
@@ -342,13 +342,13 @@ router.post("/place-bet", async (req, res) => {
     // 🔻 Deduct balance
     user.balance -= totalAmount;
 
-    // ✅ SAVE FULL BET INFO
+    // ✅ PUSH FULL BET DATA
     user.transactions.push({
       type: "BET",
       amount: totalAmount,
-      market: market,        // ✅ IMPORTANT
-      gameType: gameType,    // ✅ IMPORTANT
-      bets: bets
+      market,        // ✅ SAVED
+      gameType,      // ✅ SAVED
+      bets           // ✅ SAVED
     });
 
     await user.save();
