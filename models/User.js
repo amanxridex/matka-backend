@@ -28,13 +28,22 @@ const userSchema = new mongoose.Schema(
       {
         type: {
           type: String,
-          enum: ["ADD", "DEDUCT"],
+          enum: ["ADD", "DEDUCT", "BET"], // ✅ BET ADDED
           required: true
         },
+
         amount: {
           type: Number,
           required: true
         },
+
+        bets: [
+          {
+            digit: String,     // "2" or "92"
+            amount: Number     // 50, 100 etc
+          }
+        ],
+
         date: {
           type: Date,
           default: Date.now

@@ -254,5 +254,59 @@ router.get("/transactions", async (req, res) => {
   }
 });
 
+/* ===============================
+   PLACE BET (DEDUCT BALANCE)
+   =============================== */
+router.post("/place-bet", async (req, res) => {
+  try {
+    const auth = req.headers.authorization;
+    if (!auth) {
+      return res.status(401).json({ error: "No token" });
+    }
+
+    const token = auth.split(" ")[1];
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    const { bets, totalAmount } = req.body;
+
+    if (!bets || !bets.length || totalAmount <= 0) {
+      return res.status(400).json({ error: "Invalid bet data" });
+    }
+
+    const user = await User.findById(decoded.id);
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    // ❌ INSUFFICIENT BALANCE
+    if (user.balance < totalAmount) {
+      return res.status(400).json({
+        error: "Insufficient balance"
+      });
+    }
+
+    // 💸 DEDUCT BALANCE
+    user.balance -= totalAmount;
+
+    // 🧾 SAVE TRANSACTION (FOR BALANCE HISTORY)
+    user.transactions.push({
+      type: "BET",
+      amount: totalAmount,
+      bets, // optional but useful
+      date: new Date()
+    });
+
+    await user.save();
+
+    res.json({
+      success: true,
+      newBalance: user.balance
+    });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Bet failed" });
+  }
+});
 
 module.exports = router;
