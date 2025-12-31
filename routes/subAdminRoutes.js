@@ -22,18 +22,19 @@ router.post("/login", async (req, res) => {
 
     const token = jwt.sign(
       {
-        id: sub._id,
-        role: "SUB_ADMIN",
-        username: sub.username
+        id: subAdmin._id,
+        username: subAdmin.username,
+        role: "SUB_ADMIN"
       },
       process.env.JWT_SECRET,
-      { expiresIn: "1d" }
+      { expiresIn: "7d" }
     );
 
     res.json({
       token,
-      username: sub.username
+      username: subAdmin.username
     });
+
   } catch (err) {
     res.status(500).json({ message: "Server error" });
   }

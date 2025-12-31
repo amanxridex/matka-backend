@@ -7,32 +7,27 @@ const authSubAdmin = require("../middleware/authSubAdmin");
 const router = express.Router();
 
 /* GET USERS */
-router.get("/", authSubAdmin, async (req, res) => {
-  const users = await User.find({
-    createdBy: req.subAdmin.id
-  }).select("-password");
-
-  res.json(users);
-});
-
-/* CREATE USER */
 router.post("/create", authSubAdmin, async (req, res) => {
-  const { username, password } = req.body;
+  try {
+    const { username, password } = req.body;
 
-  const hash = await bcrypt.hash(password, 10);
+    const hashed = await bcrypt.hash(password, 10);
 
-  const user = await User.create({
-    username,
-    password: hash,
-    createdBy: req.subAdmin.id
-  });
+    const user = await User.create({
+      username,
+      password: hashed,
+      createdBy: req.subAdmin.id
+    });
 
-  // 🔥 INCREMENT SUBADMIN USER COUNT
-  await SubAdmin.findByIdAndUpdate(req.subAdmin.id, {
-    $inc: { users: 1 }
-  });
+    // 🔥 SUBADMIN USERS +1
+    await SubAdmin.findByIdAndUpdate(req.subAdmin.id, {
+      $inc: { users: 1 }
+    });
 
-  res.json(user);
+    res.json(user);
+  } catch (err) {
+    res.status(400).json({ msg: err.message });
+  }
 });
 
 module.exports = router;
