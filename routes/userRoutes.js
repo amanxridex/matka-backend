@@ -1,5 +1,6 @@
 const express = require("express");
 const User = require("../models/User");
+const Bet = require("../models/Bet");
 const SubAdmin = require("../models/SubAdmin");
 const authSubAdmin = require("../middleware/authSubAdmin");
 const bcrypt = require("bcryptjs");
@@ -297,6 +298,57 @@ router.post("/place-bet", async (req, res) => {
     });
 
     await user.save();
+
+    res.json({
+      success: true,
+      newBalance: user.balance
+    });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Bet failed" });
+  }
+});
+
+router.post("/place-bet", async (req, res) => {
+  try {
+    const auth = req.headers.authorization;
+    if (!auth) return res.status(401).json({ error: "No token" });
+
+    const token = auth.split(" ")[1];
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    const { bets, totalAmount, market, betType } = req.body;
+
+    if (!bets?.length || !market || !betType) {
+      return res.status(400).json({ error: "Invalid bet data" });
+    }
+
+    const user = await User.findById(decoded.id);
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    if (user.balance < totalAmount) {
+      return res.status(400).json({ error: "Insufficient balance" });
+    }
+
+    // 💸 DEDUCT BALANCE
+    user.balance -= totalAmount;
+
+    user.transactions.push({
+      type: "DEDUCT",
+      amount: totalAmount
+    });
+
+    await user.save();
+
+    // 🧾 SAVE BET
+    await Bet.create({
+      user: user._id,
+      market,          // ✅ IMPORTANT
+      betType,         // AKHAR / JODI
+      bets,
+      totalAmount
+    });
 
     res.json({
       success: true,
