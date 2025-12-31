@@ -4,19 +4,17 @@ const router = express.Router();
 const Market = require("../models/Market");
 const Result = require("../models/Result");
 
-/* ✅ GET LIVE MARKETS */
-router.get("/markets/live", async (req, res) => {
+/* ✅ GET ALL MARKETS */
+router.get("/markets", async (req, res) => {
   try {
-    const markets = await Market.find({ status: "OPEN" })
-      .select("name");
-
+    const markets = await Market.find().select("name");
     res.json(markets);
   } catch (err) {
     res.status(500).json({ error: "Server error" });
   }
 });
 
-/* ✅ PUBLISH RESULT */
+/* ✅ PUBLISH RESULT (NO SESSION ANYWHERE) */
 router.post("/results/publish", async (req, res) => {
   try {
     const { market, result } = req.body;
@@ -25,19 +23,18 @@ router.post("/results/publish", async (req, res) => {
       return res.status(400).json({ error: "Missing fields" });
     }
 
+    // ❌ Duplicate result protection (1 result per market per day)
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
 
-    // ❌ Duplicate protection (same market + session + date)
     const exists = await Result.findOne({
       market,
-      session,
-      date: {
-        $gte: new Date().setHours(0,0,0,0)
-      }
+      date: { $gte: today }
     });
 
     if (exists) {
       return res.status(400).json({
-        error: "Result already published"
+        error: "Result already published for this market today"
       });
     }
 
@@ -46,19 +43,13 @@ router.post("/results/publish", async (req, res) => {
       result
     });
 
-    // 🔒 Close market after result
-    await Market.updateOne(
-      { name: market },
-      { status: "CLOSED" }
-    );
-
     res.json({
       success: true,
       result: newResult
     });
 
   } catch (err) {
-    console.error(err);
+    console.error("RESULT PUBLISH ERROR:", err);
     res.status(500).json({ error: "Server error" });
   }
 });
@@ -66,9 +57,7 @@ router.post("/results/publish", async (req, res) => {
 /* ✅ GET ALL RESULTS */
 router.get("/results", async (req, res) => {
   try {
-    const results = await Result.find()
-      .sort({ date: -1 });
-
+    const results = await Result.find().sort({ date: -1 });
     res.json(results);
   } catch (err) {
     res.status(500).json({ error: "Server error" });
