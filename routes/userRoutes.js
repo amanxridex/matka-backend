@@ -229,4 +229,30 @@ router.get("/me", async (req, res) => {
   }
 });
 
+/* ===============================
+   USER BALANCE HISTORY
+   =============================== */
+router.get("/transactions", async (req, res) => {
+  try {
+    const auth = req.headers.authorization;
+    if (!auth) {
+      return res.status(401).json({ error: "No token" });
+    }
+
+    const token = auth.split(" ")[1];
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    const user = await User.findById(decoded.id).select("transactions");
+
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    res.json(user.transactions.reverse()); // latest first
+  } catch (err) {
+    return res.status(401).json({ error: "Invalid token" });
+  }
+});
+
+
 module.exports = router;
