@@ -6,18 +6,33 @@ const mongoose = require("mongoose");
 const cors = require("cors");
 
 const adminRoutes = require("./routes/adminRoutes");
-const marketRoutes = require("./routes/marketRoutes"); // 👈 ADD
+const marketRoutes = require("./routes/marketRoutes");
+const subAdminRoutes = require("./routes/subAdminRoutes");
+const userRoutes = require("./routes/userRoutes");
 
 const app = express();
 
 app.use(cors());
 app.use(express.json());
 
-// ROUTES
+// ================= ROUTES =================
+
+// SUPER ADMIN
 app.use("/admin", adminRoutes);
-app.use("/subadmin", require("./routes/subAdminRoutes"));
-app.use("/api/markets", marketRoutes); // 👈 ADD (VERY IMPORTANT)
-app.use("/subadmin/users", require("./routes/userRoutes"));
+
+// SUB ADMIN
+app.use("/subadmin", subAdminRoutes);
+
+// SUB ADMIN → USERS (create, list, wallet etc.)
+app.use("/subadmin/users", userRoutes);
+
+// 🔥 USER (LOGIN, PLAY, ME etc.)
+app.use("/user", userRoutes);
+
+// MARKETS (PLAY PAGE)
+app.use("/api/markets", marketRoutes);
+
+// ================= SERVER =================
 
 const PORT = process.env.PORT || 5000;
 

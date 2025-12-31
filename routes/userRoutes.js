@@ -129,4 +129,45 @@ router.post("/wallet/:id", authSubAdmin, async (req, res) => {
   }
 });
 
+/* ===============================
+   USER LOGIN (FOR PLAY PAGE)
+   =============================== */
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
+
+router.post("/login", async (req, res) => {
+  try {
+    const { username, password } = req.body;
+
+    const user = await User.findOne({ username });
+    if (!user) {
+      return res.status(401).json({ error: "Invalid credentials" });
+    }
+
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(401).json({ error: "Invalid credentials" });
+    }
+
+    const token = jwt.sign(
+      { id: user._id, role: "USER" },
+      process.env.JWT_SECRET,
+      { expiresIn: "7d" }
+    );
+
+    res.json({
+      token,
+      user: {
+        _id: user._id,
+        username: user.username,
+        balance: user.balance
+      }
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Login failed" });
+  }
+});
+
+
 module.exports = router;
