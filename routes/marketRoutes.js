@@ -10,6 +10,12 @@ router.post("/add", async (req, res) => {
   res.json(market);
 });
 
+/* DELETE MARKET (ADMIN) */
+router.delete("/:id", async (req, res) => {
+  await Market.findByIdAndDelete(req.params.id);
+  res.json({ success: true });
+});
+
 /* GET MARKETS (USER) */
 router.get("/", async (req, res) => {
   const markets = await Market.find();
