@@ -28,7 +28,7 @@ const userSchema = new mongoose.Schema(
       {
         type: {
           type: String,
-          enum: ["ADD", "DEDUCT", "BET"],
+          enum: ["ADD", "DEDUCT", "BET", "WIN"],
           required: true
         },
 
@@ -58,6 +58,11 @@ const userSchema = new mongoose.Schema(
             }
           }
         ],
+
+        settled:{
+          type:Boolean,
+          default:false
+        },
 
         date: {
           type: Date,

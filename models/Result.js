@@ -6,7 +6,7 @@ const resultSchema = new mongoose.Schema({
     required: true
   },
   result: {
-    type: String,
+    type: String, // e.g. "59"
     required: true
   },
   date: {

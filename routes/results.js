@@ -3,8 +3,12 @@ const router = express.Router();
 
 const Market = require("../models/Market");
 const Result = require("../models/Result");
+const User = require("../models/User");
+const SubAdmin = require("../models/SubAdmin");
 
-/* ✅ GET ALL MARKETS */
+/* ===============================
+   GET ALL MARKETS
+   =============================== */
 router.get("/markets", async (req, res) => {
   try {
     const markets = await Market.find().select("name");
@@ -14,7 +18,9 @@ router.get("/markets", async (req, res) => {
   }
 });
 
-/* ✅ PUBLISH RESULT (NO SESSION ANYWHERE) */
+/* ===============================
+   PUBLISH RESULT + AUTO WIN LOGIC
+   =============================== */
 router.post("/results/publish", async (req, res) => {
   try {
     const { market, result } = req.body;
@@ -23,7 +29,7 @@ router.post("/results/publish", async (req, res) => {
       return res.status(400).json({ error: "Missing fields" });
     }
 
-    // ❌ Duplicate result protection (1 result per market per day)
+    // ✅ One result per market per day
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
@@ -38,14 +44,78 @@ router.post("/results/publish", async (req, res) => {
       });
     }
 
-    const newResult = await Result.create({
-      market,
-      result
-    });
+    // ✅ Save result
+    const newResult = await Result.create({ market, result });
+
+    // 🔥 Derive results
+    const jodiResult = result;
+    const akharResult = result[result.length - 1];
+
+    // 🔥 Fetch all users
+    const users = await User.find();
+
+    for (const user of users) {
+      let totalWin = 0;
+
+      // SubAdmin of user
+      const subAdmin = await SubAdmin.findById(user.createdBy);
+      if (!subAdmin) continue;
+
+      for (const txn of user.transactions) {
+
+        // only unsettled BETs of this market
+        if (
+          txn.type !== "BET" ||
+          txn.market !== market ||
+          txn.settled === true
+        ) {
+          continue;
+        }
+
+        for (const b of txn.bets) {
+
+          // ===== AKHAR =====
+          if (txn.gameType === "AKHAR" && b.digit === akharResult) {
+            totalWin += b.amount * 1.95;
+          }
+
+          // ===== JODI =====
+          if (txn.gameType === "JODI" && b.digit === jodiResult) {
+            totalWin += b.amount * 95;
+          }
+        }
+
+        // mark bet settled
+        txn.settled = true;
+      }
+
+      // payout
+      if (totalWin > 0) {
+        user.balance += totalWin;
+
+        user.transactions.push({
+          type: "WIN",
+          amount: totalWin,
+          market,
+          result
+        });
+
+        // subadmin can go negative
+        subAdmin.balance -= totalWin;
+
+        await subAdmin.save();
+        await user.save();
+      } else {
+        await user.save(); // save settled flag
+      }
+    }
 
     res.json({
       success: true,
-      result: newResult
+      market,
+      result,
+      jodi: jodiResult,
+      akhar: akharResult
     });
 
   } catch (err) {
@@ -54,7 +124,9 @@ router.post("/results/publish", async (req, res) => {
   }
 });
 
-/* ✅ GET ALL RESULTS */
+/* ===============================
+   GET ALL RESULTS
+   =============================== */
 router.get("/results", async (req, res) => {
   try {
     const results = await Result.find().sort({ date: -1 });
