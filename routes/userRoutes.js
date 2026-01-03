@@ -306,7 +306,7 @@ router.post("/place-bet", async (req, res) => {
     await user.save();
     await subAdmin.save();
 
-    // (OPTIONAL) BET COLLECTION SAVE — baad me use hoga
+    /* (OPTIONAL) BET COLLECTION SAVE — baad me use hoga
     for (const b of bets) {
       await Bet.create({
         userId: user._id,
@@ -317,6 +317,7 @@ router.post("/place-bet", async (req, res) => {
         amount: b.amount
       });
     }
+    */
 
     res.json({
       success: true,
