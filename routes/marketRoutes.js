@@ -10,6 +10,29 @@ router.post("/add", async (req, res) => {
   res.json(market);
 });
 
+/* UPDATE MARKET (ADMIN) */
+router.put("/:id", async (req, res) => {
+  try {
+    const { name, openTime, closeTime } = req.body;
+
+    const market = await Market.findByIdAndUpdate(
+      req.params.id,
+      { name, openTime, closeTime },
+      { new: true }
+    );
+
+    if (!market) {
+      return res.status(404).json({ error: "Market not found" });
+    }
+
+    res.json({ success: true, market });
+
+  } catch (err) {
+    console.error("MARKET UPDATE ERROR:", err);
+    res.status(500).json({ error: "Update failed" });
+  }
+});
+
 /* DELETE MARKET (ADMIN) */
 router.delete("/:id", async (req, res) => {
   await Market.findByIdAndDelete(req.params.id);
