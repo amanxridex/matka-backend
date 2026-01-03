@@ -76,7 +76,7 @@ router.post("/results/publish", async (req, res) => {
 
           // ===== AKHAR =====
           if (txn.gameType === "AKHAR" && b.digit === akharResult) {
-            totalWin += b.amount * 1.95;
+            totalWin += b.amount * 9.5;
           }
 
           // ===== JODI =====
