@@ -6,6 +6,60 @@ const authSubAdmin = require("../middleware/authSubAdmin");
 
 const router = express.Router();
 
+const User = require("../models/User");
+
+/* ===============================
+   SUB ADMIN ANALYTICS
+   =============================== */
+router.get("/analytics", authSubAdmin, async (req, res) => {
+  try {
+    const market = req.query.market || "all";
+    const subAdminId = req.subAdmin.id;
+
+    const matchStage = {
+      "transactions.type": { $in: ["BET", "WIN"] },
+      createdBy: subAdminId
+    };
+
+    if (market !== "all") {
+      matchStage["transactions.market"] = market;
+    }
+
+    const data = await User.aggregate([
+      { $match: { createdBy: subAdminId } },
+      { $unwind: "$transactions" },
+      { $match: matchStage },
+      {
+        $group: {
+          _id: "$transactions.type",
+          totalAmount: { $sum: "$transactions.amount" }
+        }
+      }
+    ]);
+
+    let totalBet = 0;
+    let totalWin = 0;
+
+    data.forEach(d => {
+      if (d._id === "BET") totalBet += d.totalAmount;
+      if (d._id === "WIN") totalWin += d.totalAmount;
+    });
+
+    res.json({
+      success: true,
+      overall: {
+        totalBet,
+        totalWin,
+        pl: totalBet - totalWin
+      }
+    });
+
+  } catch (err) {
+    console.error("ANALYTICS ERROR:", err);
+    res.status(500).json({ success: false, message: "Analytics failed" });
+  }
+});
+
 /* ===============================
    SUB ADMIN LOGIN
    =============================== */
