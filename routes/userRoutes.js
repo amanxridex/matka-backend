@@ -256,7 +256,7 @@ router.get("/transactions", async (req, res) => {
 });
 
 /* ===============================
-   PLACE BET (DEDUCT BALANCE)
+   PLACE BET (USER → SUBADMIN)
    =============================== */
 router.post("/place-bet", async (req, res) => {
   try {
@@ -268,12 +268,11 @@ router.post("/place-bet", async (req, res) => {
 
     const { market, gameType, bets, totalAmount } = req.body;
 
-    console.log("REQ BODY 👉", req.body);
-
-    if (!market || !gameType) {
-      return res.status(400).json({ error: "Market or gameType missing" });
+    if (!market || !gameType || !bets || !totalAmount) {
+      return res.status(400).json({ error: "Invalid bet data" });
     }
 
+    // 1️⃣ USER FETCH
     const user = await User.findById(decoded.id);
     if (!user) return res.status(404).json({ error: "User not found" });
 
@@ -281,24 +280,43 @@ router.post("/place-bet", async (req, res) => {
       return res.status(400).json({ error: "Insufficient balance" });
     }
 
-    user.balance -= totalAmount;
+    // 2️⃣ SUBADMIN FETCH (🔥 MISSING PIECE)
+    const subAdmin = await SubAdmin.findById(user.createdBy);
+    if (!subAdmin) {
+      return res.status(404).json({ error: "SubAdmin not found" });
+    }
 
-    console.log("PUSHING BET 👉", {
-      market,
-      gameType,
-      bets,
-      totalAmount
-    });
+    // 🔥🔥🔥 PAISA MOVE 🔥🔥🔥
+
+    // USER SE PAISA KATTA
+    user.balance -= totalAmount;
 
     user.transactions.push({
       type: "BET",
       amount: totalAmount,
-      market: market,
-      gameType: gameType,
-      bets: bets
+      market,
+      gameType,
+      bets
     });
 
+    // SUBADMIN KO PAISA MILTA
+    subAdmin.balance += totalAmount;
+
+    // 3️⃣ SAVE BOTH
     await user.save();
+    await subAdmin.save();
+
+    // (OPTIONAL) BET COLLECTION SAVE — baad me use hoga
+    for (const b of bets) {
+      await Bet.create({
+        userId: user._id,
+        subAdminId: subAdmin._id,
+        market,
+        gameType,
+        number: b.digit,
+        amount: b.amount
+      });
+    }
 
     res.json({
       success: true,
@@ -310,5 +328,6 @@ router.post("/place-bet", async (req, res) => {
     res.status(500).json({ error: "Bet placement failed" });
   }
 });
+
 
 module.exports = router;
