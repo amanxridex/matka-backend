@@ -88,6 +88,40 @@ router.put("/market/:id", auth("SUPER_ADMIN"), async (req, res) => {
   }
 });
 
+/* =====================================
+   SUPERADMIN GLOBAL P&L SUMMARY
+   ===================================== */
+router.get("/pl/summary", auth("SUPER_ADMIN"), async (req, res) => {
+  try {
+    const User = require("../models/User");
+
+    const users = await User.find({}, { transactions: 1 }).lean();
+
+    let totalBet = 0;
+    let totalWin = 0;
+
+    users.forEach(u => {
+      (u.transactions || []).forEach(tx => {
+        if (tx.type === "BET") {
+          totalBet += tx.amount || 0;
+        }
+        if (tx.type === "WIN") {
+          totalWin += tx.amount || 0;
+        }
+      });
+    });
+
+    res.json({
+      totalProfit: totalBet,     // amount users BET
+      totalLoss: totalWin,       // amount PAID to users
+      netPL: totalBet - totalWin
+    });
+
+  } catch (err) {
+    console.error("SUPERADMIN P&L ERROR:", err);
+    res.status(500).json({ message: "P&L calculation failed" });
+  }
+});
 
 /* ---------- LIST SUB ADMINS ---------- */
 router.get("/subadmins", auth("SUPER_ADMIN"), async (req, res) => {
