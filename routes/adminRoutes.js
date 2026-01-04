@@ -89,12 +89,21 @@ router.put("/market/:id", auth("SUPER_ADMIN"), async (req, res) => {
 });
 
 /* =====================================
-   SUPERADMIN GLOBAL P&L SUMMARY
-   ===================================== */
+   SUPERADMIN GLOBAL P&L SUMMARY (DATE FILTERED)
+===================================== */
 router.get("/pl/summary", auth("SUPER_ADMIN"), async (req, res) => {
   try {
-    const User = require("../models/User");
+    const { date } = req.query;
 
+    let start = null, end = null;
+    if (date) {
+      start = new Date(date);
+      start.setHours(0, 0, 0, 0);
+      end = new Date(date);
+      end.setHours(23, 59, 59, 999);
+    }
+
+    const User = require("../models/User");
     const users = await User.find({}, { transactions: 1 }).lean();
 
     let totalBet = 0;
@@ -102,6 +111,13 @@ router.get("/pl/summary", auth("SUPER_ADMIN"), async (req, res) => {
 
     users.forEach(u => {
       (u.transactions || []).forEach(tx => {
+
+        /* ✅ DATE FILTER (THIS WAS MISSING) */
+        if (start && end) {
+          const d = new Date(tx.date);
+          if (d < start || d > end) return;
+        }
+
         if (tx.type === "BET") {
           totalBet += tx.amount || 0;
         }
@@ -112,8 +128,8 @@ router.get("/pl/summary", auth("SUPER_ADMIN"), async (req, res) => {
     });
 
     res.json({
-      totalProfit: totalBet,     // amount users BET
-      totalLoss: totalWin,       // amount PAID to users
+      totalProfit: totalBet,   // total BET amount
+      totalLoss: totalWin,     // total WIN payout
       netPL: totalBet - totalWin
     });
 
@@ -123,11 +139,22 @@ router.get("/pl/summary", auth("SUPER_ADMIN"), async (req, res) => {
   }
 });
 
+
 /* =====================================
-   SUPERADMIN P/L BREAKDOWN
+   SUPERADMIN P/L BREAKDOWN (DATE FILTERED)
 ===================================== */
 router.get("/pl/breakdown", auth("SUPER_ADMIN"), async (req, res) => {
   try {
+    const { date } = req.query;
+
+    let start = null, end = null;
+    if (date) {
+      start = new Date(date);
+      start.setHours(0, 0, 0, 0);
+      end = new Date(date);
+      end.setHours(23, 59, 59, 999);
+    }
+
     const User = require("../models/User");
     const users = await User.find({}, { transactions: 1 }).lean();
 
@@ -137,6 +164,12 @@ router.get("/pl/breakdown", auth("SUPER_ADMIN"), async (req, res) => {
 
     users.forEach(u => {
       (u.transactions || []).forEach(tx => {
+
+        /* ✅ DATE FILTER (MISSING PART FIXED) */
+        if (start && end) {
+          const d = new Date(tx.date);
+          if (d < start || d > end) return;
+        }
 
         // ---------- MARKET ----------
         if (tx.market) {
@@ -167,7 +200,7 @@ router.get("/pl/breakdown", auth("SUPER_ADMIN"), async (req, res) => {
       });
     });
 
-    // calculate market P/L
+    // ---------- CALCULATE MARKET P/L ----------
     Object.values(markets).forEach(m => {
       m.pl = m.bet - m.win;
     });
