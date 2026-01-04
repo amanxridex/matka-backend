@@ -106,20 +106,16 @@ router.get("/analytics", authSubAdmin, async (req, res) => {
 router.get("/analytics/markets", authSubAdmin, async (req, res) => {
   try {
     const users = await User.find(
-      { createdBy: req.subAdmin._id },
+      { createdBy: req.subAdmin.id },
       { transactions: 1 }
     ).lean();
 
     const set = new Set();
 
     users.forEach(u => {
-      (u.transactions || []).forEach(t => {
-        if (
-          t.type === "BET" &&
-          t.market &&
-          typeof t.market === "string"
-        ) {
-          set.add(t.market.trim());
+      u.transactions?.forEach(t => {
+        if (t.market) {
+          set.add(t.market);
         }
       });
     });
@@ -130,7 +126,7 @@ router.get("/analytics/markets", authSubAdmin, async (req, res) => {
     });
 
   } catch (err) {
-    console.error("MARKET LOAD ERROR", err);
+    console.error("MARKET DROPDOWN ERROR", err);
     res.status(500).json({ success: false });
   }
 });
