@@ -9,121 +9,120 @@ const authSubAdmin = require("../middleware/authSubAdmin");
 router.get("/analytics", authSubAdmin, async (req, res) => {
   try {
     const { market = "all", date } = req.query;
-    const subAdminId = req.subAdmin._id;
 
-    let startDate = null;
-    let endDate = null;
+    const users = await User.find({ createdBy: req.subAdmin._id });
 
-    if (date) {
-      startDate = new Date(date);
-      startDate.setHours(0,0,0,0);
+    let totalBet = 0, totalWin = 0;
+    let marketMap = {}, gameMap = {}, numberMap = {}, userMap = {};
 
-      endDate = new Date(date);
-      endDate.setHours(23,59,59,999);
-    }
+    const selectedDate = date ? new Date(date) : null;
 
-    const users = await User.find(
-      { createdBy: subAdminId },
-      { username: 1, transactions: 1 }
-    ).lean();
+    users.forEach(u => {
+      (u.transactions || []).forEach(t => {
 
-    let overall = { bet: 0, win: 0, pl: 0 };
-    let markets = {};
-    let games = {};
-    let numbers = {};
-    let usersMap = {};
+        // DATE FILTER 🔥
+        if (selectedDate) {
+          const txDate = new Date(t.date);
+          if (txDate.toISOString().slice(0,10) !== date) return;
+        }
 
-    for (const u of users) {
-      usersMap[u.username] ??= { bet: 0, win: 0 };
+        // MARKET FILTER
+        if (market !== "all" && t.market !== market) return;
 
-      for (const t of u.transactions || []) {
+        /* BET */
+        if (t.type === "BET") {
+          totalBet += t.amount || 0;
 
-        if (date && !(t.date >= startDate && t.date <= endDate)) continue;
+          if (t.market) {
+            marketMap[t.market] ??= { bet: 0, win: 0 };
+            marketMap[t.market].bet += t.amount || 0;
+          }
 
-        const tMarket = t.market?.toUpperCase();
-
-        /* ===== BET ===== */
-        if (
-          t.type === "BET" &&
-          t.amount > 0 &&
-          t.market &&
-          t.gameType
-        ) {
-          if (market !== "all" && tMarket !== market.toUpperCase()) continue;
-
-          overall.bet += t.amount;
-          usersMap[u.username].bet += t.amount;
-
-          markets[tMarket] ??= { bet: 0, win: 0 };
-          markets[tMarket].bet += t.amount;
-
-          games[t.gameType] ??= { bet: 0, win: 0 };
-          games[t.gameType].bet += t.amount;
+          if (t.gameType) {
+            gameMap[t.gameType] ??= { bet: 0, win: 0 };
+            gameMap[t.gameType].bet += t.amount || 0;
+          }
 
           (t.bets || []).forEach(b => {
-            if (!b.digit || !b.amount) return;
             const key = `${b.digit}_${t.gameType}`;
-            numbers[key] ??= {
+            numberMap[key] ??= {
               number: b.digit,
               game: t.gameType,
               bet: 0
             };
-            numbers[key].bet += b.amount;
+            numberMap[key].bet += b.amount || 0;
           });
+
+          userMap[u.username] ??= { bet: 0, win: 0 };
+          userMap[u.username].bet += t.amount || 0;
         }
 
-        /* ===== WIN ===== */
-        if (t.type === "WIN" && t.amount > 0 && t.market) {
-          if (market !== "all" && tMarket !== market.toUpperCase()) continue;
+        /* WIN */
+        if (t.type === "WIN") {
+          totalWin += t.amount || 0;
 
-          overall.win += t.amount;
-          usersMap[u.username].win += t.amount;
+          if (t.market) marketMap[t.market].win += t.amount || 0;
+          if (t.gameType) gameMap[t.gameType].win += t.amount || 0;
 
-          markets[tMarket] ??= { bet: 0, win: 0 };
-          markets[tMarket].win += t.amount;
+          userMap[u.username] ??= { bet: 0, win: 0 };
+          userMap[u.username].win += t.amount || 0;
         }
-      }
-    }
 
-    overall.pl = overall.bet - overall.win;
-
-    Object.values(markets).forEach(m => m.pl = m.bet - m.win);
-    Object.values(games).forEach(g => g.pl = g.bet - g.win);
+      });
+    });
 
     res.json({
       success: true,
-      overall,
-      markets,
-      games,
-      numbers,
-      users: usersMap
+      overall: {
+        bet: totalBet,
+        win: totalWin,
+        pl: totalBet - totalWin
+      },
+      markets: marketMap,
+      games: gameMap,
+      numbers: numberMap,
+      users: userMap
     });
 
-  } catch (e) {
-    console.error("ANALYTICS ERROR", e);
+  } catch (err) {
+    console.error("ANALYTICS ERROR", err);
     res.status(500).json({ success: false });
   }
 });
-
 
 /* ===============================
    DYNAMIC MARKET LIST
    =============================== */
 router.get("/analytics/markets", authSubAdmin, async (req, res) => {
-  const users = await User.find(
-    { createdBy: req.subAdmin._id },
-    { transactions: 1 }
-  ).lean();
+  try {
+    const users = await User.find(
+      { createdBy: req.subAdmin._id },
+      { transactions: 1 }
+    ).lean();
 
-  const set = new Set();
+    const set = new Set();
 
-  users.forEach(u => {
-    u.transactions?.forEach(t => {
-      if (t.market) set.add(t.market);
+    users.forEach(u => {
+      (u.transactions || []).forEach(t => {
+        if (
+          t.type === "BET" &&
+          t.market &&
+          typeof t.market === "string"
+        ) {
+          set.add(t.market.trim());
+        }
+      });
     });
-  });
 
-  res.json({ markets: Array.from(set) });
+    res.json({
+      success: true,
+      markets: Array.from(set)
+    });
+
+  } catch (err) {
+    console.error("MARKET LOAD ERROR", err);
+    res.status(500).json({ success: false });
+  }
 });
 
 module.exports = router;
