@@ -123,6 +123,67 @@ router.get("/pl/summary", auth("SUPER_ADMIN"), async (req, res) => {
   }
 });
 
+/* =====================================
+   SUPERADMIN P/L BREAKDOWN
+===================================== */
+router.get("/pl/breakdown", auth("SUPER_ADMIN"), async (req, res) => {
+  try {
+    const User = require("../models/User");
+    const users = await User.find({}, { transactions: 1 }).lean();
+
+    const markets = {};
+    const games = {};
+    const numbers = {};
+
+    users.forEach(u => {
+      (u.transactions || []).forEach(tx => {
+
+        // ---------- MARKET ----------
+        if (tx.market) {
+          markets[tx.market] ??= { bet: 0, win: 0 };
+          if (tx.type === "BET") markets[tx.market].bet += tx.amount || 0;
+          if (tx.type === "WIN") markets[tx.market].win += tx.amount || 0;
+        }
+
+        // ---------- GAME ----------
+        if (tx.gameType && tx.type === "BET") {
+          games[tx.gameType] ??= { bet: 0 };
+          games[tx.gameType].bet += tx.amount || 0;
+        }
+
+        // ---------- NUMBERS ----------
+        if (tx.type === "BET") {
+          (tx.bets || []).forEach(b => {
+            const key = `${b.digit}_${tx.gameType}`;
+            numbers[key] ??= {
+              number: b.digit,
+              game: tx.gameType,
+              bet: 0
+            };
+            numbers[key].bet += b.amount || 0;
+          });
+        }
+
+      });
+    });
+
+    // calculate market P/L
+    Object.values(markets).forEach(m => {
+      m.pl = m.bet - m.win;
+    });
+
+    res.json({
+      markets,
+      games,
+      numbers
+    });
+
+  } catch (err) {
+    console.error("P/L BREAKDOWN ERROR:", err);
+    res.status(500).json({ message: "Breakdown failed" });
+  }
+});
+
 /* ---------- LIST SUB ADMINS ---------- */
 router.get("/subadmins", auth("SUPER_ADMIN"), async (req, res) => {
   const subs = await SubAdmin.find().select("-password");
