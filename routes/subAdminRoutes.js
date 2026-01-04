@@ -9,83 +9,117 @@ const router = express.Router();
 const User = require("../models/User");
 
 /* ===============================
-   SUB ADMIN ANALYTICS (FULL)
+   SUB ADMIN ANALYTICS (CLEAN DATA ONLY)
    =============================== */
 router.get("/analytics", authSubAdmin, async (req, res) => {
   try {
-    const market = req.query.market || "all";
+    const marketFilter = req.query.market || "all";
     const subAdminId = req.subAdmin.id;
 
-    const pipeline = [
-      { $match: { createdBy: subAdminId } },
-      { $unwind: "$transactions" },
-      {
-        $match: {
-          "transactions.type": { $in: ["BET", "WIN"] },
-          ...(market !== "all" && { "transactions.market": market })
-        }
-      }
-    ];
+    const users = await User.find(
+      { createdBy: subAdminId },
+      { username: 1, transactions: 1 }
+    ).lean();
 
-    const txns = await User.aggregate(pipeline);
-
-    let overall = { bet: 0, win: 0 };
+    let overall = { bet: 0, win: 0, pl: 0 };
     let markets = {};
     let games = {};
     let numbers = {};
-    let users = {};
+    let usersMap = {};
 
-    txns.forEach(u => {
-      const t = u.transactions;
-      const amt = t.amount || 0;
+    for (const user of users) {
+      for (const tx of user.transactions || []) {
 
-      // OVERALL
-      if (t.type === "BET") overall.bet += amt;
-      if (t.type === "WIN") overall.win += amt;
+        /* ===============================
+           IGNORE DIRTY / OLD DATA
+           =============================== */
+        if (!tx.market) continue;
+        if (tx.type === "BET" && !tx.gameType) continue;
+        if (marketFilter !== "all" && tx.market !== marketFilter) continue;
 
-      // MARKET
-      markets[t.market] ??= { bet: 0, win: 0 };
-      if (t.type === "BET") markets[t.market].bet += amt;
-      if (t.type === "WIN") markets[t.market].win += amt;
+        /* ===============================
+           USER STATS
+           =============================== */
+        if (!usersMap[user.username]) {
+          usersMap[user.username] = { bet: 0, win: 0 };
+        }
 
-      // GAME
-      games[t.gameType] ??= { bet: 0, win: 0 };
-      if (t.type === "BET") games[t.gameType].bet += amt;
-      if (t.type === "WIN") games[t.gameType].win += amt;
+        /* ===============================
+           BET
+           =============================== */
+        if (tx.type === "BET") {
+          overall.bet += tx.amount;
+          usersMap[user.username].bet += tx.amount;
 
-      // NUMBER (liability)
-      if (t.type === "BET") {
-        const key = `${t.digit}_${t.gameType}`;
-        numbers[key] ??= {
-          number: t.digit,
-          game: t.gameType,
-          bet: 0
-        };
-        numbers[key].bet += amt;
+          // MARKET
+          if (!markets[tx.market]) {
+            markets[tx.market] = { bet: 0, win: 0 };
+          }
+          markets[tx.market].bet += tx.amount;
+
+          // GAME
+          if (!games[tx.gameType]) {
+            games[tx.gameType] = { bet: 0, win: 0 };
+          }
+          games[tx.gameType].bet += tx.amount;
+
+          // NUMBER LIABILITY
+          for (const b of tx.bets || []) {
+            const key = `${b.digit}_${tx.gameType}`;
+            if (!numbers[key]) {
+              numbers[key] = {
+                number: b.digit,
+                game: tx.gameType,
+                bet: 0
+              };
+            }
+            numbers[key].bet += b.amount;
+          }
+        }
+
+        /* ===============================
+           WIN
+           =============================== */
+        if (tx.type === "WIN") {
+          overall.win += tx.amount;
+          usersMap[user.username].win += tx.amount;
+
+          if (!markets[tx.market]) {
+            markets[tx.market] = { bet: 0, win: 0 };
+          }
+          markets[tx.market].win += tx.amount;
+        }
       }
+    }
 
-      // USER
-      users[u.username] ??= { bet: 0, win: 0 };
-      if (t.type === "BET") users[u.username].bet += amt;
-      if (t.type === "WIN") users[u.username].win += amt;
+    /* ===============================
+       CALCULATE P/L
+       =============================== */
+    overall.pl = overall.bet - overall.win;
+
+    Object.values(markets).forEach(m => {
+      m.pl = m.bet - m.win;
+    });
+
+    Object.values(games).forEach(g => {
+      g.pl = g.bet - g.win;
     });
 
     res.json({
       success: true,
-      overall: {
-        bet: overall.bet,
-        win: overall.win,
-        pl: overall.bet - overall.win
-      },
+      overall,
       markets,
       games,
       numbers,
-      users
+      users: usersMap
     });
 
   } catch (err) {
-    console.error("ANALYTICS ERROR:", err);
-    res.status(500).json({ success: false, message: "Analytics failed" });
+    console.error("SUBADMIN ANALYTICS ERROR:", err);
+    res.status(500).json({
+      success: false,
+      message: "Analytics failed"
+    });
   }
 });
 
