@@ -10,26 +10,33 @@ router.get("/analytics", authSubAdmin, async (req, res) => {
   try {
     const { market = "all", date } = req.query;
 
-    const users = await User.find({ createdBy: req.subAdmin._id });
+    const users = await User.find({ createdBy: req.subAdmin._id }).lean();
 
     let totalBet = 0, totalWin = 0;
     let marketMap = {}, gameMap = {}, numberMap = {}, userMap = {};
 
-    const selectedDate = date ? new Date(date) : null;
+    let start = null, end = null;
+
+    if (date) {
+      start = new Date(date);
+      start.setHours(0,0,0,0);
+      end = new Date(date);
+      end.setHours(23,59,59,999);
+    }
 
     users.forEach(u => {
       (u.transactions || []).forEach(t => {
 
-        // DATE FILTER 🔥
-        if (selectedDate) {
-          const txDate = new Date(t.date);
-          if (txDate.toISOString().slice(0,10) !== date) return;
+        // DATE FILTER ✅
+        if (start && end) {
+          const d = new Date(t.date);
+          if (d < start || d > end) return;
         }
 
-        // MARKET FILTER
+        // MARKET FILTER ✅
         if (market !== "all" && t.market !== market) return;
 
-        /* BET */
+        // BET
         if (t.type === "BET") {
           totalBet += t.amount || 0;
 
@@ -57,12 +64,15 @@ router.get("/analytics", authSubAdmin, async (req, res) => {
           userMap[u.username].bet += t.amount || 0;
         }
 
-        /* WIN */
+        // WIN
         if (t.type === "WIN") {
           totalWin += t.amount || 0;
 
-          if (t.market) marketMap[t.market].win += t.amount || 0;
-          if (t.gameType) gameMap[t.gameType].win += t.amount || 0;
+          if (t.market && marketMap[t.market])
+            marketMap[t.market].win += t.amount || 0;
+
+          if (t.gameType && gameMap[t.gameType])
+            gameMap[t.gameType].win += t.amount || 0;
 
           userMap[u.username] ??= { bet: 0, win: 0 };
           userMap[u.username].win += t.amount || 0;
