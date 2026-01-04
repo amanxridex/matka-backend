@@ -9,49 +9,78 @@ const router = express.Router();
 const User = require("../models/User");
 
 /* ===============================
-   SUB ADMIN ANALYTICS
+   SUB ADMIN ANALYTICS (FULL)
    =============================== */
 router.get("/analytics", authSubAdmin, async (req, res) => {
   try {
     const market = req.query.market || "all";
     const subAdminId = req.subAdmin.id;
 
-    const matchStage = {
-      "transactions.type": { $in: ["BET", "WIN"] },
-      createdBy: subAdminId
-    };
-
-    if (market !== "all") {
-      matchStage["transactions.market"] = market;
-    }
-
-    const data = await User.aggregate([
+    const pipeline = [
       { $match: { createdBy: subAdminId } },
       { $unwind: "$transactions" },
-      { $match: matchStage },
       {
-        $group: {
-          _id: "$transactions.type",
-          totalAmount: { $sum: "$transactions.amount" }
+        $match: {
+          "transactions.type": { $in: ["BET", "WIN"] },
+          ...(market !== "all" && { "transactions.market": market })
         }
       }
-    ]);
+    ];
 
-    let totalBet = 0;
-    let totalWin = 0;
+    const txns = await User.aggregate(pipeline);
 
-    data.forEach(d => {
-      if (d._id === "BET") totalBet += d.totalAmount;
-      if (d._id === "WIN") totalWin += d.totalAmount;
+    let overall = { bet: 0, win: 0 };
+    let markets = {};
+    let games = {};
+    let numbers = {};
+    let users = {};
+
+    txns.forEach(u => {
+      const t = u.transactions;
+      const amt = t.amount || 0;
+
+      // OVERALL
+      if (t.type === "BET") overall.bet += amt;
+      if (t.type === "WIN") overall.win += amt;
+
+      // MARKET
+      markets[t.market] ??= { bet: 0, win: 0 };
+      if (t.type === "BET") markets[t.market].bet += amt;
+      if (t.type === "WIN") markets[t.market].win += amt;
+
+      // GAME
+      games[t.gameType] ??= { bet: 0, win: 0 };
+      if (t.type === "BET") games[t.gameType].bet += amt;
+      if (t.type === "WIN") games[t.gameType].win += amt;
+
+      // NUMBER (liability)
+      if (t.type === "BET") {
+        const key = `${t.digit}_${t.gameType}`;
+        numbers[key] ??= {
+          number: t.digit,
+          game: t.gameType,
+          bet: 0
+        };
+        numbers[key].bet += amt;
+      }
+
+      // USER
+      users[u.username] ??= { bet: 0, win: 0 };
+      if (t.type === "BET") users[u.username].bet += amt;
+      if (t.type === "WIN") users[u.username].win += amt;
     });
 
     res.json({
       success: true,
       overall: {
-        totalBet,
-        totalWin,
-        pl: totalBet - totalWin
-      }
+        bet: overall.bet,
+        win: overall.win,
+        pl: overall.bet - overall.win
+      },
+      markets,
+      games,
+      numbers,
+      users
     });
 
   } catch (err) {
@@ -59,6 +88,7 @@ router.get("/analytics", authSubAdmin, async (req, res) => {
     res.status(500).json({ success: false, message: "Analytics failed" });
   }
 });
+
 
 /* ===============================
    SUB ADMIN LOGIN
