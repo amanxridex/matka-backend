@@ -205,6 +205,26 @@ router.get("/pl/breakdown", auth("SUPER_ADMIN"), async (req, res) => {
   }
 });
 
+// 🔥 GET ADMIN WALLET
+router.get("/wallet", auth("SUPER_ADMIN"), async (req, res) => {
+  try {
+    const admin = await Admin.findById(req.user.id).lean();
+
+    if (!admin) {
+      return res.status(404).json({ message: "Admin not found" });
+    }
+
+    res.json({
+      success: true,
+      balance: admin.balance || 0
+    });
+
+  } catch (err) {
+    console.error("ADMIN WALLET ERROR", err);
+    res.status(500).json({ success: false });
+  }
+});
+
 /* ---------- LIST SUB ADMINS ---------- */
 router.get("/subadmins", auth("SUPER_ADMIN"), async (req, res) => {
   const subs = await SubAdmin.find().select("-password");
