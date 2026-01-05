@@ -101,34 +101,55 @@ router.get("/analytics", authSubAdmin, async (req, res) => {
   }
 });
 
+/* =====================================
+   SUBADMIN SETTLEMENT (LIVE / DATE WISE)
+===================================== */
 router.get("/subadmin-settlement", auth("SUPER_ADMIN"), async (req, res) => {
-  const { subAdminId, date } = req.query;
+  try {
+    const { subAdminId, date } = req.query;
+    if (!subAdminId) {
+      return res.status(400).json({ message: "subAdminId required" });
+    }
 
-  // 1️⃣ analytics se overall P/L uthao
-  const analytics = await getSubAdminAnalytics(subAdminId, date);
-  const overallPL = analytics.overallPL;
+    // 1️⃣ SubAdmin + commission (LIVE)
+    const subAdmin = await SubAdmin.findById(subAdminId).lean();
+    if (!subAdmin) {
+      return res.status(404).json({ message: "SubAdmin not found" });
+    }
 
-  // 2️⃣ commission
-  const fixed = 5;
-  const variable = 20;
-  const subPercent = fixed + variable;
+    const fixed = subAdmin.commission?.fixed || 0;
+    const variable = subAdmin.commission?.variable || 0;
+    const subPercent = fixed + variable;
 
-  const amount = Math.round(Math.abs(overallPL) * subPercent / 100);
+    // 2️⃣ Overall P/L from analytics (already LIVE)
+    const analytics = await getSubAdminAnalytics(subAdminId, date);
+    const overallPL = analytics?.overallPL || 0;
 
-  let direction;
-  if (overallPL > 0) {
-    direction = "SUPER_PAYS_SUB";
-  } else {
-    direction = "SUB_PAYS_SUPER";
+    // 3️⃣ Settlement calculation
+    const settlementAmount =
+      Math.round(Math.abs(overallPL) * subPercent / 100);
+
+    const direction =
+      overallPL >= 0
+        ? "SUPER_PAYS_SUB"
+        : "SUB_PAYS_SUPER";
+
+    res.json({
+      date: date || "today",
+      overallPL,
+      subPercent,
+      settlementAmount,
+      direction,
+      breakdown: {
+        fixed,
+        variable
+      }
+    });
+
+  } catch (err) {
+    console.error("SUBADMIN SETTLEMENT ERROR:", err);
+    res.status(500).json({ message: "Settlement failed" });
   }
-
-  res.json({
-    date,
-    overallPL,
-    subPercent,
-    settlementAmount: amount,
-    direction
-  });
 });
 
 /* ===============================
