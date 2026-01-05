@@ -37,6 +37,7 @@ app.use("/api/markets", marketRoutes);
 app.use("/api", resultsRoutes);
 app.use("/api/bets", betsRoute);
 app.use("/subadmin", require("./routes/subadminAnalytics"));
+app.use("/admin", require("./routes/subadminAnalytics"));
 
 // ================= SERVER =================
 
