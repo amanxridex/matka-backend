@@ -3,6 +3,8 @@ const router = express.Router();
 const User = require("../models/User");
 const authSubAdmin = require("../middleware/authSubAdmin");
 const auth = require("../middleware/auth");
+const SubAdmin = require("../models/SubAdmin");
+await SubAdmin.findById()
 
 /* ===============================
    SUB ADMIN ANALYTICS
@@ -100,6 +102,45 @@ router.get("/analytics", authSubAdmin, async (req, res) => {
     res.status(500).json({ success: false });
   }
 });
+
+async function getSubAdminAnalytics(subAdminId, date) {
+  const users = await User.find({ createdBy: subAdminId }).lean();
+
+  let totalBet = 0;
+  let totalWin = 0;
+
+  let start = null;
+  let end = null;
+
+  if (date) {
+    start = new Date(date);
+    start.setHours(0, 0, 0, 0);
+    end = new Date(date);
+    end.setHours(23, 59, 59, 999);
+  }
+
+  users.forEach(u => {
+    (u.transactions || []).forEach(t => {
+
+      if (start && end) {
+        const d = new Date(t.date);
+        if (d < start || d > end) return;
+      }
+
+      if (t.type === "BET") {
+        totalBet += t.amount || 0;
+      }
+
+      if (t.type === "WIN") {
+        totalWin += t.amount || 0;
+      }
+    });
+  });
+
+  return {
+    overallPL: totalBet - totalWin
+  };
+}
 
 /* =====================================
    SUBADMIN SETTLEMENT (LIVE / DATE WISE)
