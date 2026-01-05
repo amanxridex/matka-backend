@@ -4,7 +4,6 @@ const User = require("../models/User");
 const authSubAdmin = require("../middleware/authSubAdmin");
 const auth = require("../middleware/auth");
 const SubAdmin = require("../models/SubAdmin");
-await SubAdmin.findById()
 
 /* ===============================
    SUB ADMIN ANALYTICS
