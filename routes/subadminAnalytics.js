@@ -100,6 +100,36 @@ router.get("/analytics", authSubAdmin, async (req, res) => {
   }
 });
 
+router.get("/subadmin-settlement", auth("SUPER_ADMIN"), async (req, res) => {
+  const { subAdminId, date } = req.query;
+
+  // 1️⃣ analytics se overall P/L uthao
+  const analytics = await getSubAdminAnalytics(subAdminId, date);
+  const overallPL = analytics.overallPL;
+
+  // 2️⃣ commission
+  const fixed = 5;
+  const variable = 20;
+  const subPercent = fixed + variable;
+
+  const amount = Math.round(Math.abs(overallPL) * subPercent / 100);
+
+  let direction;
+  if (overallPL > 0) {
+    direction = "SUPER_PAYS_SUB";
+  } else {
+    direction = "SUB_PAYS_SUPER";
+  }
+
+  res.json({
+    date,
+    overallPL,
+    subPercent,
+    settlementAmount: amount,
+    direction
+  });
+});
+
 /* ===============================
    DYNAMIC MARKET LIST
    =============================== */
