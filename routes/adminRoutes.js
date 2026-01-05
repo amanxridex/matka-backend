@@ -99,6 +99,7 @@ router.get("/pl/summary", auth("SUPER_ADMIN"), async (req, res) => {
     if (date) {
       start = new Date(date);
       start.setHours(0, 0, 0, 0);
+
       end = new Date(date);
       end.setHours(23, 59, 59, 999);
     }
@@ -112,15 +113,16 @@ router.get("/pl/summary", auth("SUPER_ADMIN"), async (req, res) => {
     users.forEach(u => {
       (u.transactions || []).forEach(tx => {
 
-        /* ✅ DATE FILTER (THIS WAS MISSING) */
+        // ✅ DATE FILTER (FINAL & CORRECT)
         if (start && end) {
-          const d = new Date(tx.date);
-          if (d < start || d > end) return;
+          if (!tx.date) return;
+          if (tx.date < start || tx.date > end) return;
         }
 
         if (tx.type === "BET") {
           totalBet += tx.amount || 0;
         }
+
         if (tx.type === "WIN") {
           totalWin += tx.amount || 0;
         }
@@ -128,8 +130,8 @@ router.get("/pl/summary", auth("SUPER_ADMIN"), async (req, res) => {
     });
 
     res.json({
-      totalProfit: totalBet,   // total BET amount
-      totalLoss: totalWin,     // total WIN payout
+      totalProfit: totalBet,
+      totalLoss: totalWin,
       netPL: totalBet - totalWin
     });
 
@@ -138,7 +140,6 @@ router.get("/pl/summary", auth("SUPER_ADMIN"), async (req, res) => {
     res.status(500).json({ message: "P&L calculation failed" });
   }
 });
-
 
 /* =====================================
    SUPERADMIN P/L BREAKDOWN (DATE FILTERED)
@@ -151,6 +152,7 @@ router.get("/pl/breakdown", auth("SUPER_ADMIN"), async (req, res) => {
     if (date) {
       start = new Date(date);
       start.setHours(0, 0, 0, 0);
+
       end = new Date(date);
       end.setHours(23, 59, 59, 999);
     }
@@ -165,10 +167,10 @@ router.get("/pl/breakdown", auth("SUPER_ADMIN"), async (req, res) => {
     users.forEach(u => {
       (u.transactions || []).forEach(tx => {
 
-        /* ✅ DATE FILTER (MISSING PART FIXED) */
+        // ✅ DATE FILTER (FINAL & CORRECT)
         if (start && end) {
-          const d = new Date(tx.date);
-          if (d < start || d > end) return;
+          if (!tx.date) return;
+          if (tx.date < start || tx.date > end) return;
         }
 
         // ---------- MARKET ----------
@@ -216,6 +218,7 @@ router.get("/pl/breakdown", auth("SUPER_ADMIN"), async (req, res) => {
     res.status(500).json({ message: "Breakdown failed" });
   }
 });
+
 
 /* ---------- LIST SUB ADMINS ---------- */
 router.get("/subadmins", auth("SUPER_ADMIN"), async (req, res) => {
