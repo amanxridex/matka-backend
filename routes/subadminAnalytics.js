@@ -223,4 +223,27 @@ router.get("/analytics/markets", authSubAdmin, async (req, res) => {
   }
 });
 
+router.post(
+  "/subadmin-commission",
+  auth("SUPER_ADMIN"),
+  async (req, res) => {
+    try {
+      const { subAdminId, variable } = req.body;
+
+      if (variable < 0 || variable > 50) {
+        return res.status(400).json({ success: false });
+      }
+
+      await SubAdmin.findByIdAndUpdate(subAdminId, {
+        "commission.variable": variable
+      });
+
+      res.json({ success: true });
+    } catch (err) {
+      console.error("COMMISSION UPDATE ERROR", err);
+      res.status(500).json({ success: false });
+    }
+  }
+);
+
 module.exports = router;
