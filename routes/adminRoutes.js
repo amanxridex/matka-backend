@@ -93,7 +93,17 @@ router.put("/market/:id", auth("SUPER_ADMIN"), async (req, res) => {
 ===================================== */
 router.get("/pl/summary", auth("SUPER_ADMIN"), async (req, res) => {
   try {
-    const { date } = req.query; // YYYY-MM-DD
+    const { date } = req.query;
+
+    let start = null, end = null;
+
+    if (date) {
+      const [y, m, d] = date.split("-").map(Number);
+
+      // IST DAY RANGE
+      start = new Date(Date.UTC(y, m - 1, d, -5, -30, 0));
+      end   = new Date(Date.UTC(y, m - 1, d, 18, 29, 59, 999));
+    }
 
     const User = require("../models/User");
     const users = await User.find({}, { transactions: 1 }).lean();
@@ -103,11 +113,11 @@ router.get("/pl/summary", auth("SUPER_ADMIN"), async (req, res) => {
 
     users.forEach(u => {
       (u.transactions || []).forEach(tx => {
+        if (!tx.date) return;
 
-        // ✅ PERFECT DATE FILTER (NO TIMEZONE BUG)
-        if (date) {
-          const txDate = new Date(tx.date).toISOString().slice(0, 10);
-          if (txDate !== date) return;
+        if (start && end) {
+          const t = new Date(tx.date);
+          if (t < start || t > end) return;
         }
 
         if (tx.type === "BET") totalBet += tx.amount || 0;
@@ -123,7 +133,7 @@ router.get("/pl/summary", auth("SUPER_ADMIN"), async (req, res) => {
 
   } catch (err) {
     console.error("P/L SUMMARY ERROR:", err);
-    res.status(500).json({ message: "P&L calculation failed" });
+    res.status(500).json({ message: "P/L calculation failed" });
   }
 });
 
@@ -132,7 +142,15 @@ router.get("/pl/summary", auth("SUPER_ADMIN"), async (req, res) => {
 ===================================== */
 router.get("/pl/breakdown", auth("SUPER_ADMIN"), async (req, res) => {
   try {
-    const { date } = req.query; // YYYY-MM-DD
+    const { date } = req.query;
+
+    let start = null, end = null;
+
+    if (date) {
+      const [y, m, d] = date.split("-").map(Number);
+      start = new Date(Date.UTC(y, m - 1, d, -5, -30, 0));
+      end   = new Date(Date.UTC(y, m - 1, d, 18, 29, 59, 999));
+    }
 
     const User = require("../models/User");
     const users = await User.find({}, { transactions: 1 }).lean();
@@ -143,27 +161,24 @@ router.get("/pl/breakdown", auth("SUPER_ADMIN"), async (req, res) => {
 
     users.forEach(u => {
       (u.transactions || []).forEach(tx => {
+        if (!tx.date) return;
 
-        // ✅ PERFECT DATE FILTER
-        if (date) {
-          const txDate = new Date(tx.date).toISOString().slice(0, 10);
-          if (txDate !== date) return;
+        if (start && end) {
+          const t = new Date(tx.date);
+          if (t < start || t > end) return;
         }
 
-        // ---------- MARKET ----------
         if (tx.market) {
           markets[tx.market] ??= { bet: 0, win: 0 };
           if (tx.type === "BET") markets[tx.market].bet += tx.amount || 0;
           if (tx.type === "WIN") markets[tx.market].win += tx.amount || 0;
         }
 
-        // ---------- GAME ----------
         if (tx.gameType && tx.type === "BET") {
           games[tx.gameType] ??= { bet: 0 };
           games[tx.gameType].bet += tx.amount || 0;
         }
 
-        // ---------- NUMBERS ----------
         if (tx.type === "BET") {
           (tx.bets || []).forEach(b => {
             const key = `${b.digit}_${tx.gameType}`;
@@ -175,7 +190,6 @@ router.get("/pl/breakdown", auth("SUPER_ADMIN"), async (req, res) => {
             numbers[key].bet += b.amount || 0;
           });
         }
-
       });
     });
 
