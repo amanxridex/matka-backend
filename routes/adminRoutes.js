@@ -93,16 +93,7 @@ router.put("/market/:id", auth("SUPER_ADMIN"), async (req, res) => {
 ===================================== */
 router.get("/pl/summary", auth("SUPER_ADMIN"), async (req, res) => {
   try {
-    const { date } = req.query;
-
-    let start = null, end = null;
-    if (date) {
-      start = new Date(date);
-      start.setHours(0, 0, 0, 0);
-
-      end = new Date(date);
-      end.setHours(23, 59, 59, 999);
-    }
+    const { date } = req.query; // YYYY-MM-DD
 
     const User = require("../models/User");
     const users = await User.find({}, { transactions: 1 }).lean();
@@ -113,19 +104,14 @@ router.get("/pl/summary", auth("SUPER_ADMIN"), async (req, res) => {
     users.forEach(u => {
       (u.transactions || []).forEach(tx => {
 
-        // ✅ DATE FILTER (FINAL & CORRECT)
-        if (start && end) {
-          if (!tx.date) return;
-          if (tx.date < start || tx.date > end) return;
+        // ✅ PERFECT DATE FILTER (NO TIMEZONE BUG)
+        if (date) {
+          const txDate = new Date(tx.date).toISOString().slice(0, 10);
+          if (txDate !== date) return;
         }
 
-        if (tx.type === "BET") {
-          totalBet += tx.amount || 0;
-        }
-
-        if (tx.type === "WIN") {
-          totalWin += tx.amount || 0;
-        }
+        if (tx.type === "BET") totalBet += tx.amount || 0;
+        if (tx.type === "WIN") totalWin += tx.amount || 0;
       });
     });
 
@@ -136,7 +122,7 @@ router.get("/pl/summary", auth("SUPER_ADMIN"), async (req, res) => {
     });
 
   } catch (err) {
-    console.error("SUPERADMIN P&L ERROR:", err);
+    console.error("P/L SUMMARY ERROR:", err);
     res.status(500).json({ message: "P&L calculation failed" });
   }
 });
@@ -146,16 +132,7 @@ router.get("/pl/summary", auth("SUPER_ADMIN"), async (req, res) => {
 ===================================== */
 router.get("/pl/breakdown", auth("SUPER_ADMIN"), async (req, res) => {
   try {
-    const { date } = req.query;
-
-    let start = null, end = null;
-    if (date) {
-      start = new Date(date);
-      start.setHours(0, 0, 0, 0);
-
-      end = new Date(date);
-      end.setHours(23, 59, 59, 999);
-    }
+    const { date } = req.query; // YYYY-MM-DD
 
     const User = require("../models/User");
     const users = await User.find({}, { transactions: 1 }).lean();
@@ -167,10 +144,10 @@ router.get("/pl/breakdown", auth("SUPER_ADMIN"), async (req, res) => {
     users.forEach(u => {
       (u.transactions || []).forEach(tx => {
 
-        // ✅ DATE FILTER (FINAL & CORRECT)
-        if (start && end) {
-          if (!tx.date) return;
-          if (tx.date < start || tx.date > end) return;
+        // ✅ PERFECT DATE FILTER
+        if (date) {
+          const txDate = new Date(tx.date).toISOString().slice(0, 10);
+          if (txDate !== date) return;
         }
 
         // ---------- MARKET ----------
@@ -202,23 +179,17 @@ router.get("/pl/breakdown", auth("SUPER_ADMIN"), async (req, res) => {
       });
     });
 
-    // ---------- CALCULATE MARKET P/L ----------
     Object.values(markets).forEach(m => {
       m.pl = m.bet - m.win;
     });
 
-    res.json({
-      markets,
-      games,
-      numbers
-    });
+    res.json({ markets, games, numbers });
 
   } catch (err) {
     console.error("P/L BREAKDOWN ERROR:", err);
     res.status(500).json({ message: "Breakdown failed" });
   }
 });
-
 
 /* ---------- LIST SUB ADMINS ---------- */
 router.get("/subadmins", auth("SUPER_ADMIN"), async (req, res) => {
