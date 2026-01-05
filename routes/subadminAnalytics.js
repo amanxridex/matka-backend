@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const User = require("../models/User");
 const authSubAdmin = require("../middleware/authSubAdmin");
+const auth = require("../middleware/auth");
 
 /* ===============================
    SUB ADMIN ANALYTICS
